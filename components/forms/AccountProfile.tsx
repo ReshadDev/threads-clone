@@ -1,5 +1,5 @@
 "use client";
-
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -18,6 +18,8 @@ import { userValidation } from "@/lib/validations/user";
 import * as z from "zod";
 import Image from "next/image";
 import { ChangeEvent } from "react";
+import { isBase64Image } from "@/lib/utils";
+import { useUploadThing } from "@/lib/uploadthing";
 
 interface AccountProfileProps {
   user: {
@@ -32,26 +34,60 @@ interface AccountProfileProps {
 }
 
 const AccountProfile = ({ user, btnTitle }: AccountProfileProps) => {
+  const [files, setFiles] = React.useState<File[]>([]);
+  const { startUpload } = useUploadThing("media");
+
   const form = useForm({
     resolver: zodResolver(userValidation),
     defaultValues: {
-      profile_photo: "",
-      name: "",
-      username: "",
-      bio: "",
+      profile_photo: user?.image || "",
+      name: user?.name || "",
+      username: user?.username || "",
+      bio: user?.bio || "",
     },
   });
 
+  const onSubmit = async (values: z.infer<typeof userValidation>) => {
+    const blob = values.profile_photo;
+
+    const hasImageChanged = isBase64Image(blob);
+    if (hasImageChanged) {
+      const imgRes = await startUpload(files);
+
+      if (imgRes && imgRes[0].fileUrl) {
+        values.profile_photo = imgRes[0].fileUrl;
+      }
+    }
+
+    // TODO: Update user profile
+  };
+
+  // This handleImage function helps us to change the profile picture on onboarding page
+
   const handleImage = (
-    e: ChangeEvent,
+    e: ChangeEvent<HTMLInputElement>,
     fieldChange: (value: string) => void
   ) => {
     e.preventDefault();
-  };
 
-  function onSubmit(values: z.infer<typeof userValidation>) {
-    console.log(values);
-  }
+    const fileReader = new FileReader();
+
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+
+      setFiles(Array.from(e.target.files));
+
+      if (!file.type.includes("image")) return;
+
+      fileReader.onload = async (event) => {
+        const imageDataUrl = event.target?.result?.toString() || "";
+
+        fieldChange(imageDataUrl);
+      };
+
+      fileReader.readAsDataURL(file);
+    }
+  };
 
   return (
     <Form {...form}>
@@ -102,11 +138,11 @@ const AccountProfile = ({ user, btnTitle }: AccountProfileProps) => {
           control={form.control}
           name="name"
           render={({ field }) => (
-            <FormItem className="flex items-center gap-3 w-full">
+            <FormItem className="flex flex-col gap-3 w-full">
               <FormLabel className="text-base-semibold text-light-2">
                 Name
               </FormLabel>
-              <FormControl className="flex-1 text-base-semibold text-gray-200">
+              <FormControl>
                 <Input
                   className="account-form_input no-focus"
                   type="text"
@@ -121,11 +157,11 @@ const AccountProfile = ({ user, btnTitle }: AccountProfileProps) => {
           control={form.control}
           name="username"
           render={({ field }) => (
-            <FormItem className="flex items-center gap-3 w-full">
+            <FormItem className="flex flex-col gap-3 w-full">
               <FormLabel className="text-base-semibold text-light-2">
                 Username
               </FormLabel>
-              <FormControl className="flex-1 text-base-semibold text-gray-200">
+              <FormControl>
                 <Input
                   className="account-form_input no-focus"
                   type="text"
@@ -140,11 +176,11 @@ const AccountProfile = ({ user, btnTitle }: AccountProfileProps) => {
           control={form.control}
           name="bio"
           render={({ field }) => (
-            <FormItem className="flex items-center gap-3 w-full">
+            <FormItem className="flex flex-col gap-3 w-full">
               <FormLabel className="text-base-semibold text-light-2">
                 Bio
               </FormLabel>
-              <FormControl className="flex-1 text-base-semibold text-gray-200">
+              <FormControl>
                 <Textarea
                   className="account-form_input no-focus"
                   rows={10}
