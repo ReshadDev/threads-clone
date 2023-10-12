@@ -20,6 +20,8 @@ import Image from "next/image";
 import { ChangeEvent } from "react";
 import { isBase64Image } from "@/lib/utils";
 import { useUploadThing } from "@/lib/uploadthing";
+import { updateUser } from "@/lib/actions/user.actions";
+import { usePathname, useRouter } from "next/navigation";
 
 interface AccountProfileProps {
   user: {
@@ -36,6 +38,8 @@ interface AccountProfileProps {
 const AccountProfile = ({ user, btnTitle }: AccountProfileProps) => {
   const [files, setFiles] = React.useState<File[]>([]);
   const { startUpload } = useUploadThing("media");
+  const router = useRouter();
+  const pathname = usePathname();
 
   const form = useForm({
     resolver: zodResolver(userValidation),
@@ -46,21 +50,6 @@ const AccountProfile = ({ user, btnTitle }: AccountProfileProps) => {
       bio: user?.bio || "",
     },
   });
-
-  const onSubmit = async (values: z.infer<typeof userValidation>) => {
-    const blob = values.profile_photo;
-
-    const hasImageChanged = isBase64Image(blob);
-    if (hasImageChanged) {
-      const imgRes = await startUpload(files);
-
-      if (imgRes && imgRes[0].fileUrl) {
-        values.profile_photo = imgRes[0].fileUrl;
-      }
-    }
-
-    // TODO: Update user profile
-  };
 
   // This handleImage function helps us to change the profile picture on onboarding page
 
@@ -86,6 +75,34 @@ const AccountProfile = ({ user, btnTitle }: AccountProfileProps) => {
       };
 
       fileReader.readAsDataURL(file);
+    }
+  };
+
+  const onSubmit = async (values: z.infer<typeof userValidation>) => {
+    const blob = values.profile_photo;
+
+    const hasImageChanged = isBase64Image(blob);
+    if (hasImageChanged) {
+      const imgRes = await startUpload(files);
+
+      if (imgRes && imgRes[0].fileUrl) {
+        values.profile_photo = imgRes[0].fileUrl;
+      }
+    }
+
+    await updateUser({
+      userId: user.id,
+      name: values.name,
+      username: values.username,
+      bio: values.bio,
+      image: values.profile_photo,
+      path: pathname,
+    });
+
+    if (pathname === "/profile/edit") {
+      router.back();
+    } else {
+      router.push("/");
     }
   };
 
