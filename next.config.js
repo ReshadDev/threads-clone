@@ -1,15 +1,13 @@
-/** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
     serverActions: true,
     serverComponentsExternalPackages: ["mongoose"],
   },
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
   images: {
+    domains: ["utfs.io"], // Add utfs.io here
     remotePatterns: [
       {
         protocol: "https",
@@ -26,6 +24,10 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "placehold.co",
+      },
+      {
+        protocol: "https",
+        hostname: "utfs.io",
       },
     ],
   },
