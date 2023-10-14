@@ -1,35 +1,49 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import User from "../models/user.model";
-import { connectToDB } from "../mongoose";
-import Thread from "../models/thread.model";
 import { FilterQuery, SortOrder } from "mongoose";
+import { revalidatePath } from "next/cache";
+
+import Community from "../models/community.model";
+import Thread from "../models/thread.model";
+import User from "../models/user.model";
+
+import { connectToDB } from "../mongoose";
+
+export async function fetchUser(userId: string) {
+  try {
+    connectToDB();
+
+    return await User.findOne({ id: userId }).populate({
+      path: "communities",
+      model: Community,
+    });
+  } catch (error: any) {
+    throw new Error(`Failed to fetch user: ${error.message}`);
+  }
+}
 
 interface Params {
   userId: string;
+  username: string;
   name: string;
   bio: string;
   image: string;
   path: string;
-  username: string;
 }
 
 export async function updateUser({
   userId,
-  name,
   bio,
-  image,
+  name,
   path,
   username,
+  image,
 }: Params): Promise<void> {
-  connectToDB();
-
   try {
+    connectToDB();
+
     await User.findOneAndUpdate(
-      {
-        id: userId,
-      },
+      { id: userId },
       {
         username: username.toLowerCase(),
         name,
@@ -37,30 +51,14 @@ export async function updateUser({
         image,
         onboarded: true,
       },
-      {
-        upsert: true,
-      }
+      { upsert: true }
     );
 
     if (path === "/profile/edit") {
       revalidatePath(path);
     }
   } catch (error: any) {
-    throw new Error(`Failed to create/update user : ${error.message}`);
-  }
-}
-
-export async function fetchUser(userId: string) {
-  try {
-    connectToDB();
-
-    return await User.findOne({ id: userId });
-    // .populate({
-    //   path: "communities",
-    //   model: Community,
-    // });
-  } catch (error: any) {
-    throw new Error(`Failed to fetch user : ${error.message}`);
+    throw new Error(`Failed to create/update user: ${error.message}`);
   }
 }
 
@@ -73,6 +71,11 @@ export async function fetchUserPosts(userId: string) {
       path: "threads",
       model: Thread,
       populate: [
+        {
+          path: "community",
+          model: Community,
+          select: "name id image _id", // Select the "name" and "_id" fields from the "Community" model
+        },
         {
           path: "children",
           model: Thread,
@@ -91,6 +94,7 @@ export async function fetchUserPosts(userId: string) {
   }
 }
 
+// Almost similar to Thead (search + pagination) and Community (search + pagination)
 export async function fetchUsers({
   userId,
   searchString = "",
